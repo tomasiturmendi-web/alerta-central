@@ -39,10 +39,9 @@
   <audio id="sonidoSirena" src="https://actions.google.com/sounds/v1/alarms/digital_watch_alarm_long.ogg" loop></audio>
 
   <script>
-    // ⚠️ REEMPLAZA CON TUS DATOS REALES DE FIREBASE
     const firebaseConfig = {
       apiKey: "AIzaSyB7z5w4fgNw1QTV-Cx37j-m8r8I94J1Vuk",
-      authDomain: "alertacentral-9ba4f.firebaseapp.com"",
+      authDomain: "alertacentral-9ba4f.firebaseapp.com",
       databaseURL: "https://alertacentral-9ba4f-default-rtdb.firebaseio.com",
       projectId: "alertacentral-9ba4f",
       storageBucket: "alertacentral-9ba4f.firebasestorage.app",
@@ -50,24 +49,24 @@
       appId: "1:770130153303:web:ade358f215f5a7c46f3812"
     };
     
-    // Inicializar Firebase
-    const app = initializeApp(firebaseConfig);
-    const analytics = getAnalytics(app);
+    // Inicialización correcta para versión 8
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
     let intervaloVibracion;
     const audio = document.getElementById('sonidoSirena');
 
     function conectarTelefono() {
+      // Activar permisos de audio en el navegador del celular
       audio.play().then(() => audio.pause()).catch(e => console.log("Audio listo"));
 
+      // Escuchar cambios en la base de datos en tiempo real
       database.ref('estadoAlarma').on('value', (snapshot) => {
         const estado = snapshot.val();
         if (estado === 'ON') {
           document.getElementById('alarma-pantalla-completa').style.display = 'flex';
           document.getElementById('vista-usuario').style.display = 'none';
           audio.volume = 1.0; 
-          audio.play();
+          audio.play().catch(e => console.log("Esperando interacción para audio"));
           if ('vibrate' in navigator && !intervaloVibracion) {
             intervaloVibracion = setInterval(() => { navigator.vibrate([600, 300, 600]); }, 1000);
           }

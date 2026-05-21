@@ -11,7 +11,7 @@
     body, html { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; background: #263238; color: white; display: flex; justify-content: center; align-items: center; }
     .card { background: #37474f; padding: 40px; border-radius: 15px; text-align: center; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
     button { width: 100%; padding: 16px; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; }
-    .btn-panico { background: #e74c3c; color: white; height: 180px; width: 180px; border-radius: 50%; font-size: 22px; margin: 30px auto; display: block; box-shadow: 0 0 20px rgba(231,76,60,0.5); }
+    .btn-panico { background: #e74c3c; color: white; height: 180px; width: 180px; border-radius: 50%; font-size: 22px; margin: 30px auto; display: block; box-shadow: 0 0 20px rgba(231,76,60,0.5); cursor: pointer; }
     .btn-apagar { background: #7f8c8d; color: white; margin-top: 15px; }
   </style>
 </head>
@@ -25,10 +25,9 @@
   </div>
 
   <script>
-    // ⚠️ REEMPLAZA CON TUS MISMOS DATOS DE FIREBASE
     const firebaseConfig = {
       apiKey: "AIzaSyB7z5w4fgNw1QTV-Cx37j-m8r8I94J1Vuk",
-      authDomain: "alertacentral-9ba4f.firebaseapp.com"",
+      authDomain: "alertacentral-9ba4f.firebaseapp.com",
       databaseURL: "https://alertacentral-9ba4f-default-rtdb.firebaseio.com",
       projectId: "alertacentral-9ba4f",
       storageBucket: "alertacentral-9ba4f.firebasestorage.app",
@@ -36,12 +35,18 @@
       appId: "1:770130153303:web:ade358f215f5a7c46f3812"
     };
     
-    // Inicializar Firebase
-    const app = initializeApp(firebaseConfig);
-    const analytics = getAnalytics(app);
+    // Inicialización correcta para versión 8
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
 
-    function activarEmergencia() { database.ref('estadoAlarma').set('ON'); alert("¡Alarma enviada!"); }
-    function apagarEmergencia() { database.ref('estadoAlarma').set('OFF'); alert("Alarma desactivada."); }
+    function activarEmergencia() { 
+      database.ref('estadoAlarma').set('ON'); 
+      alert("¡Alarma enviada a Firebase!"); 
+    }
+    function apagarEmergencia() { 
+      database.ref('estadoAlarma').set('OFF'); 
+      alert("Alarma desactivada."); 
+    }
   </script>
 </body>
 </html>
