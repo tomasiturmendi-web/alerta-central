@@ -78,8 +78,13 @@
     };
     
     // Inicializar Firebase
-    const app = initializeApp(firebaseConfig);
-    const analytics = getAnalytics(app);
+    const urlActual = window.location.href.toLowerCase();
+    if (urlActual.includes('admin=true')) {
+      // Forzar que se oculte la vista del usuario y se muestre la de control
+      document.getElementById('vista-usuario').style.setProperty('display', 'none', 'important');
+      document.getElementById('vista-control').style.setProperty('display', 'flex', 'important');
+      console.log("Modo administrador activado con éxito");
+    }
 
     // Revisar si es Administrador
     const urlParams = new URLSearchParams(window.location.search);
