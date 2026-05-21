@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel Sala de Control</title>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body, html { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; background: #263238; color: white; display: flex; justify-content: center; align-items: center; }
+    .card { background: #37474f; padding: 40px; border-radius: 15px; text-align: center; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+    button { width: 100%; padding: 16px; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; }
+    .btn-panico { background: #e74c3c; color: white; height: 180px; width: 180px; border-radius: 50%; font-size: 22px; margin: 30px auto; display: block; box-shadow: 0 0 20px rgba(231,76,60,0.5); }
+    .btn-apagar { background: #7f8c8d; color: white; margin-top: 15px; }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h2>SALA DE CONTROL</h2>
+    <p>Emisor de Alerta General de Evacuación</p>
+    <button class="btn-panico" onclick="activarEmergencia()">ACTIVAR<br>ALARMA</button>
+    <button class="btn-apagar" onclick="apagarEmergencia()">Apagar Alarma</button>
+  </div>
+
+  <script>
+    // ⚠️ REEMPLAZA CON TUS MISMOS DATOS DE FIREBASE
+    const firebaseConfig = {
+      apiKey: "AIzaSyB7z5w4fgNw1QTV-Cx37j-m8r8I94J1Vuk",
+      authDomain: "alertacentral-9ba4f.firebaseapp.com"",
+      databaseURL: "https://alertacentral-9ba4f-default-rtdb.firebaseio.com",
+      projectId: "alertacentral-9ba4f",
+      storageBucket: "alertacentral-9ba4f.firebasestorage.app",
+      messagingSenderId: "770130153303",
+      appId: "1:770130153303:web:ade358f215f5a7c46f3812"
+    };
+    
+    // Inicializar Firebase
+    const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
+
+    function activarEmergencia() { database.ref('estadoAlarma').set('ON'); alert("¡Alarma enviada!"); }
+    function apagarEmergencia() { database.ref('estadoAlarma').set('OFF'); alert("Alarma desactivada."); }
+  </script>
+</body>
+</html>

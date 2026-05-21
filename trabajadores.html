@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistema de Alerta - Central</title>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body, html { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; background: #1a252f; color: white; overflow: hidden; }
+    .pantalla-registro { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; padding: 30px; text-align: center; }
+    .card { background: #2c3e50; padding: 35px; border-radius: 15px; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.4); }
+    h2 { margin-bottom: 15px; font-size: 24px; }
+    p { font-size: 16px; color: #bdc3c7; line-height: 1.4; margin-bottom: 25px; }
+    button { width: 100%; padding: 16px; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; }
+    .btn-conectar { background: #3498db; color: white; }
+    .pantalla-emergencia { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #e74c3c; color: white; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px; z-index: 9999; animation: parpadeo-fondo 0.8s infinite; }
+    .pantalla-emergencia h1 { font-size: 45px; font-weight: 900; margin-bottom: 20px; text-transform: uppercase; }
+    .pantalla-emergencia h2 { font-size: 30px; font-weight: 600; line-height: 1.3; }
+    @keyframes parpadeo-fondo { 0% { background: #e74c3c; } 50% { background: #c0392b; } 100% { background: #e74c3c; } }
+  </style>
+</head>
+<body>
+
+  <div id="vista-usuario" class="pantalla-registro">
+    <div class="card">
+      <h2>Seguridad Industrial</h2>
+      <p>Al ingresar a la central, presione el botón para enlazar el teléfono al sistema de alertas de evacuación.</p>
+      <button class="btn-conectar" onclick="conectarTelefono()">CONECTAR TELÉFONO</button>
+    </div>
+  </div>
+
+  <div id="alarma-pantalla-completa" class="pantalla-emergencia">
+    <h1>EMERGENCIA DE PLANTA</h1>
+    <h2>COMUNICATE CON TU SUPERVISOR</h2>
+  </div>
+
+  <audio id="sonidoSirena" src="https://actions.google.com/sounds/v1/alarms/digital_watch_alarm_long.ogg" loop></audio>
+
+  <script>
+    // ⚠️ REEMPLAZA CON TUS DATOS REALES DE FIREBASE
+    const firebaseConfig = {
+      apiKey: "AIzaSyB7z5w4fgNw1QTV-Cx37j-m8r8I94J1Vuk",
+      authDomain: "alertacentral-9ba4f.firebaseapp.com"",
+      databaseURL: "https://alertacentral-9ba4f-default-rtdb.firebaseio.com",
+      projectId: "alertacentral-9ba4f",
+      storageBucket: "alertacentral-9ba4f.firebasestorage.app",
+      messagingSenderId: "770130153303",
+      appId: "1:770130153303:web:ade358f215f5a7c46f3812"
+    };
+    
+    // Inicializar Firebase
+    const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+    let intervaloVibracion;
+    const audio = document.getElementById('sonidoSirena');
+
+    function conectarTelefono() {
+      audio.play().then(() => audio.pause()).catch(e => console.log("Audio listo"));
+
+      database.ref('estadoAlarma').on('value', (snapshot) => {
+        const estado = snapshot.val();
+        if (estado === 'ON') {
+          document.getElementById('alarma-pantalla-completa').style.display = 'flex';
+          document.getElementById('vista-usuario').style.display = 'none';
+          audio.volume = 1.0; 
+          audio.play();
+          if ('vibrate' in navigator && !intervaloVibracion) {
+            intervaloVibracion = setInterval(() => { navigator.vibrate([600, 300, 600]); }, 1000);
+          }
+        } else {
+          document.getElementById('alarma-pantalla-completa').style.display = 'none';
+          document.getElementById('vista-usuario').style.display = 'flex';
+          audio.pause();
+          if (intervaloVibracion) { clearInterval(intervaloVibracion); intervaloVibracion = null; navigator.vibrate(0); }
+        }
+      });
+      alert("Teléfono enlazado con éxito mediante la red.");
+    }
+  </script>
+</body>
+</html>
