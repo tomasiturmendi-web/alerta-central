@@ -2,7 +2,6 @@
 importScripts('https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js');
 importScripts('https://www.gstatic.com/firebasejs/8.10.1/firebase-messaging.js');
 
-// TUS MISMAS CREDENCIALES DE ANTES
 const firebaseConfig = {
   apiKey: "AIzaSyB7z5w4fgNw1QTV-Cx37j-m8r8I94J1Vuk",
   authDomain: "alertacentral-9ba4f.firebaseapp.com",
@@ -15,32 +14,52 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const messaging = firebase.messaging();
 
-// Este evento atrapa la señal cuando el celular está bloqueado
+// Captura la señal con el celular bloqueado o navegador cerrado
 messaging.onBackgroundMessage((payload) => {
   console.log('Alerta recibida en segundo plano: ', payload);
 
-  // Extraemos la ubicación de la planta enviada desde el panel de control
-  const latPlanta = parseFloat(payload.data.lat);
-  const lonPlanta = parseFloat(payload.data.lon);
-
-  // NOTA: En segundo plano estricto el Service Worker no puede leer el GPS en tiempo real por privacidad del sistema operativo,
-  // por lo que el navegador de Android evalúa la última posición conocida del navegador.
+  // Intentamos leer de 'notification' (Consola) o de 'data' (API/Botón de control)
+  const titulo = payload.notification?.title || payload.data?.title || "EMERGENCIA DE PLANTA";
+  const cuerpo = payload.notification?.body || payload.data?.body || "¡EVACUACIÓN INMEDIATA!";
   
+  const latPlanta = payload.data?.lat ? parseFloat(payload.data.lat) : null;
+  const lonPlanta = payload.data?.lon ? parseFloat(payload.data.lon) : null;
+
   const opcionesNotificacion = {
-    body: payload.data.body || "¡EVACUACIÓN INMEDIATA!",
-    icon: "https://cdn-icons-png.flaticon.com/512/595/595067.png", // Ícono de advertencia
-    vibrate: [500, 300, 500, 300, 500],
+    body: cuerpo,
+    icon: "https://cdn-icons-png.flaticon.com/512/595/595067.png", 
+    vibrate: [500, 300, 500, 300, 500, 300, 1000], // Patrón de vibración prolongado
     tag: 'alerta-evacuacion',
     renotify: true,
-    requireInteraction: true, // Deja la notificación fija hasta que el usuario la toque
+    requireInteraction: true, // No desaparece hasta que el usuario la descarte o toque
     data: {
+      url: "/", // Volver al inicio para pintar la pantalla de rojo
       latPlanta: latPlanta,
       lonPlanta: lonPlanta
     }
   };
 
-  return self.registration.showNotification(
-    payload.data.title || "EMERGENCIA DE PLANTA",
-    opcionesNotificacion
+  return self.registration.showNotification(titulo, opcionesNotificacion);
+});
+
+// NUEVO: Este evento detecta cuando el operario toca la notificación flotante
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close(); // Elimina el banner de la pantalla
+
+  // Buscamos si la web ya estaba abierta en alguna pestaña del celular
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      // Si la pestaña ya existía, la trae al frente (focus)
+      for (let i = 0; i < windowClients.length; i++) {
+        let client = windowClients[i];
+        if (client.url.includes(event.notification.data.url) && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      // Si el navegador estaba cerrado por completo, abre una pestaña nueva con tu App
+      if (clients.openWindow) {
+        return clients.openWindow(event.notification.data.url);
+      }
+    })
   );
 });
