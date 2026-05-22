@@ -1,0 +1,46 @@
+// firebase-messaging-sw.js
+importScripts('https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js');
+importScripts('https://www.gstatic.com/firebasejs/8.10.1/firebase-messaging.js');
+
+// TUS MISMAS CREDENCIALES DE ANTES
+const firebaseConfig = {
+  apiKey: "AIzaSyB7z5w4fgNw1QTV-Cx37j-m8r8I94J1Vuk",
+  authDomain: "alertacentral-9ba4f.firebaseapp.com",
+  projectId: "alertacentral-9ba4f",
+  storageBucket: "alertacentral-9ba4f.firebasestorage.app",
+  messagingSenderId: "770130153303",
+  appId: "1:770130153303:web:ade358f215f5a7c46f3812"
+};
+
+firebase.initializeApp(firebaseConfig);
+const messaging = firebase.messaging();
+
+// Este evento atrapa la señal cuando el celular está bloqueado
+messaging.onBackgroundMessage((payload) => {
+  console.log('Alerta recibida en segundo plano: ', payload);
+
+  // Extraemos la ubicación de la planta enviada desde el panel de control
+  const latPlanta = parseFloat(payload.data.lat);
+  const lonPlanta = parseFloat(payload.data.lon);
+
+  // NOTA: En segundo plano estricto el Service Worker no puede leer el GPS en tiempo real por privacidad del sistema operativo,
+  // por lo que el navegador de Android evalúa la última posición conocida del navegador.
+  
+  const opcionesNotificacion = {
+    body: payload.data.body || "¡EVACUACIÓN INMEDIATA!",
+    icon: "https://cdn-icons-png.flaticon.com/512/595/595067.png", // Ícono de advertencia
+    vibrate: [500, 300, 500, 300, 500],
+    tag: 'alerta-evacuacion',
+    renotify: true,
+    requireInteraction: true, // Deja la notificación fija hasta que el usuario la toque
+    data: {
+      latPlanta: latPlanta,
+      lonPlanta: lonPlanta
+    }
+  };
+
+  return self.registration.showNotification(
+    payload.data.title || "EMERGENCIA DE PLANTA",
+    opcionesNotificacion
+  );
+});
