@@ -16,6 +16,7 @@
     p { font-size: 16px; color: #bdc3c7; line-height: 1.4; margin-bottom: 25px; }
     button { width: 100%; padding: 16px; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; }
     .btn-conectar { background: #3498db; color: white; }
+    .btn-conectar:disabled { background: #7f8c8d; cursor: not-allowed; }
     .pantalla-emergencia { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #e74c3c; color: white; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px; z-index: 9999; animation: parpadeo-fondo 0.8s infinite; }
     .pantalla-emergencia h1 { font-size: 45px; font-weight: 900; margin-bottom: 20px; text-transform: uppercase; }
     .pantalla-emergencia h2 { font-size: 30px; font-weight: 600; line-height: 1.3; }
@@ -28,7 +29,7 @@
     <div class="card">
       <h2>Seguridad Industrial</h2>
       <p>Al ingresar a la central, presione el botón para enlazar el teléfono al sistema de alertas por proximidad GPS.</p>
-      <button class="btn-conectar" onclick="conectarTelefono()">CONECTAR Y VALIDAR POSICIÓN</button>
+      <button id="btn-accion" class="btn-conectar" onclick="conectarTelefono()">CONECTAR Y VALIDAR POSICIÓN</button>
     </div>
   </div>
 
@@ -53,7 +54,7 @@
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
     
-    let messaging;
+    let messaging = null;
     let swRegistration = null;
 
     // Registrar Service Worker de fondo de manera explícita
@@ -65,7 +66,7 @@
             console.log('Service Worker registrado con éxito');
             try {
               messaging = firebase.messaging();
-              messaging.useServiceWorker(reg); // Vincula Firebase con el archivo de fondo
+              messaging.useServiceWorker(reg);
             } catch(e) {
               console.log("Error al vincular el sistema de mensajería masiva");
             }
@@ -96,51 +97,75 @@
     }
 
     function conectarTelefono() {
+      const boton = document.getElementById('btn-accion');
+      boton.disabled = true;
+      boton.innerText = "VERIFICANDO...";
+
+      // Desbloqueo nativo del reproductor de audio
       audio.play().then(() => audio.pause()).catch(e => console.log("Audio listo"));
 
       if (!navigator.geolocation) {
         alert("Tu teléfono no soporta localización GPS.");
+        boton.disabled = false;
+        boton.innerText = "CONECTAR Y VALIDAR POSICIÓN";
         return;
       }
 
       navigator.geolocation.getCurrentPosition((position) => {
         const miLat = position.coords.latitude;
         const miLon = position.coords.longitude;
-        
         const distancia = calcularDistancia(miLat, miLon, LAT_CENTRAL, LON_CENTRAL);
         
-        if (distancia > DISTANCIA_MAXIMA_METROS) {
-          alert("Estás fuera del perímetro de seguridad (" + Math.round(distancia) + " metros de distancia). No recibirás alertas.");
-          return;
-        }
-
-        // Solicitar permisos Push reales para romper bloqueo
-        if (messaging && swRegistration) {
-          Notification.requestPermission().then((permission) => {
-            if (permission === 'granted') {
-              // Clave VAPID limpia y sin espacios internos
+        // MODIFICACIÓN CRÍTICA: Forzamos la solicitud de alertas independientemente de la ubicación actual
+        Notification.requestPermission().then((permission) => {
+          if (permission === 'granted') {
+            
+            if (messaging && swRegistration) {
               messaging.getToken({ 
                 vapidKey: 'BP_4wDpG5YzvLNy5ENf3_UtGPP1ms4f2YEbimIGkkThZL8b75HbuRyzkepCy8m4EOWohcqMV1RaU06_xpPrdFW8',
                 serviceWorkerRegistration: swRegistration
               }).then((tokenActual) => {
                 if (tokenActual) {
+                  // Guardamos el token en la base de datos junto con su última ubicación detectada
                   database.ref('dispositivosActivos/' + tokenActual).set({
                     fecha: Date.now(),
-                    activo: true
+                    activo: true,
+                    lat: miLat,
+                    lon: miLon
                   });
+
+                  // Evaluamos la distancia únicamente para enviar el mensaje de confirmación al operador
+                  if (distancia > DISTANCIA_MAXIMA_METROS) {
+                    alert("¡Enlazado con éxito! Nota: Te encuentras fuera del perímetro (" + Math.round(distancia) + "m). Recibirás notificaciones push de prueba, pero la pantalla se pondrá roja solo si entras a la zona.");
+                  } else {
+                    alert("¡Verificación exitosa! Te encuentras dentro de los 500m de la Central. Enlazado al sistema.");
+                  }
+                  
+                  boton.innerText = "CONECTADO ✓";
                 }
               }).catch((err) => {
                 console.error("Error obteniendo el token push:", err);
+                alert("Error de registro push en Firebase: Asegúrate de usar HTTPS o localhost.");
+                boton.disabled = false;
+                boton.innerText = "CONECTAR Y VALIDAR POSICIÓN";
               });
+            } else {
+              alert("El canal de mensajería en segundo plano sigue inicializando. Aguarda dos segundos y presiona el botón nuevamente.");
+              boton.disabled = false;
+              boton.innerText = "CONECTAR Y VALIDAR POSICIÓN";
             }
-          });
-        }
 
-        escucharBaseDeDatos();
-        alert("¡Verificación exitosa! Te encuentras dentro de los 500m de la Central. Enlazado al sistema.");
+          } else {
+            alert("Acceso denegado. Para tu protección, debes permitir las notificaciones desde el icono del candado en la barra superior.");
+            boton.disabled = false;
+            boton.innerText = "CONECTAR Y VALIDAR POSICIÓN";
+          }
+        });
 
       }, (error) => {
         alert("Error de GPS: Por favor activa la ubicación de alta precisión en tu celular.");
+        boton.disabled = false;
+        boton.innerText = "CONECTAR Y VALIDAR POSICIÓN";
       }, { enableHighAccuracy: true });
     }
 
@@ -150,24 +175,37 @@
         if (estado === 'ON') {
           navigator.geolocation.getCurrentPosition((pos) => {
             const d = calcularDistancia(pos.coords.latitude, pos.coords.longitude, LAT_CENTRAL, LON_CENTRAL);
+            
+            // Si el botón rojo está activo AND el operario está en la zona de riesgo
             if (d <= DISTANCIA_MAXIMA_METROS) {
               document.getElementById('alarma-pantalla-completa').style.display = 'flex';
               document.getElementById('vista-usuario').style.display = 'none';
               audio.volume = 1.0; 
-              audio.play().catch(e => console.log("Interacción requerida"));
+              audio.play().catch(e => console.log("Audio retenido por el navegador hasta interacción."));
+              
               if ('vibrate' in navigator && !intervaloVibracion) {
                 intervaloVibracion = setInterval(() => { navigator.vibrate([600, 300, 600]); }, 1000);
               }
             }
-          });
+          }, (err) => console.log("Error leyendo GPS durante alarma activa"), { enableHighAccuracy: true });
         } else {
+          // RESTABLECER ESTADO NORMAL
           document.getElementById('alarma-pantalla-completa').style.display = 'none';
           document.getElementById('vista-usuario').style.display = 'flex';
           audio.pause();
-          if (intervaloVibracion) { clearInterval(intervaloVibracion); intervaloVibracion = null; navigator.vibrate(0); }
+          audio.currentTime = 0;
+          if (intervaloVibracion) { 
+            clearInterval(intervaloVibracion); 
+            intervaloVibracion = null; 
+            navigator.vibrate(0); 
+          }
         }
       });
     }
+
+    // NUEVO: La aplicación empieza a escuchar a la base de datos de manera inmediata al abrirse
+    // De esta forma, si el operario entra tocando el banner push, la pantalla cambia al instante.
+    escucharBaseDeDatos();
   </script>
 </body>
 </html>
