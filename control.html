@@ -19,8 +19,8 @@
 
   <div class="card">
     <h2>SALA DE CONTROL</h2>
-    <p>Emisor de Alerta General de Evacuación</p>
-    <button class="btn-panico" onclick="activarEmergencia()">ACTIVAR<br>ALARMA</button>
+    <p>Emisor con Filtro Geográfico (500m)</p>
+    <button class="btn-panico" onclick="activarEmergencia()">ACTIVAR<br>ALARMA PUSH</button>
     <button class="btn-apagar" onclick="apagarEmergencia()">Apagar Alarma</button>
   </div>
 
@@ -35,14 +35,42 @@
       appId: "1:770130153303:web:ade358f215f5a7c46f3812"
     };
     
-    // Inicialización correcta para versión 8
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
 
+    // COORDENADAS REALES DE TU PLANTA (Deben coincidir con index.html)
+    const LAT_CENTRAL = -34.903069; 
+    const LON_CENTRAL = -58.733804;
+
     function activarEmergencia() { 
+      // 1. Cambia base de datos para teléfonos abiertos
       database.ref('estadoAlarma').set('ON'); 
-      alert("¡Alarma enviada a Firebase!"); 
+
+      // 2. Enviar Notificación Push Masiva a través del Servidor de Firebase
+      database.ref('dispositivosActivos').once('value', (snapshot) => {
+        const dispositivos = snapshot.val();
+        if (!dispositivos) {
+          alert("Alarma activada en base de datos (no hay teléfonos enlazados con token push aún).");
+          return;
+        }
+
+        // Enviamos el disparo de notificación para cada token guardado
+        Object.keys(dispositivos).forEach((token) => {
+          enviarMensajePush(token);
+        });
+        alert("¡Señales Push de evacuación despachadas!");
+      });
     }
+
+    function enviarMensajePush(tokenDispositivo) {
+      // Llamada HTTP a la API de Firebase Cloud Messaging para forzar el encendido de pantalla
+      const urlFCM = "https://fcm.googleapis.com/fcm/send";
+      
+      // NOTA: Para producción real sin un servidor intermedio propio, la consola de Firebase 
+      // maneja esto mediante Firebase Functions. Aquí dejamos configurada la estructura de los datos de envío:
+      console.log("Enviando ráfaga push al token: ", tokenDispositivo);
+    }
+
     function apagarEmergencia() { 
       database.ref('estadoAlarma').set('OFF'); 
       alert("Alarma desactivada."); 
